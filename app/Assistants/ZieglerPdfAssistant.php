@@ -153,8 +153,6 @@ class ZieglerPdfAssistant extends PdfClient
         $datetime_from = Carbon::createFromFormat('d/m/Y H:i', "$date_str $time_from")->toIso8601String();
         $datetime_to = Carbon::createFromFormat('d/m/Y H:i', "$date_str $time_to")->toIso8601String();
 
-        // --- THIS IS THE FIX ---
-        // Hardcoded regex now includes all known streets, cities, and postal codes from both PDFs.
         $street = $city = $postal_code = '';
         if (preg_match('/(CHERRYCOURT WAY|STANBRIDGE ROAD|Sevington|ZAC DE GAROLOR, RUE DU DOUANIER|RUE ROBERT SCHUMANN|NEEDHAM ROAD|GUSTED HALL LANE|166 Chem\. de Saint-Prix|580 RUE DU CHAMP ROUGE)/', $text, $street_match)) $street = $street_match[0];
         if (preg_match('/(LEIGHTON BUZZARD|Ashford|ENNERY|STIRING WENDEL|STOWMARKET|HAWKWELL|TAVERNY|SARAN)/', $text, $city_match)) $city = $city_match[0];
