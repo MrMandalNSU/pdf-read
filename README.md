@@ -1,3 +1,26 @@
+====================================================================================================
+
+# Implementation List
+
+1. Dockerized Environment:
+
+    - Uses Docker and Docker Compose for a one-command setup, ensuring all dependencies (PHP, Composer, Poppler) are handled correctly.
+
+2. Schema Validation:
+
+    - All extracted data is validated against a master JSON schema (storage/order_schema.json) to ensure data integrity and a consistent output structure.
+
+3. Implemented new Parsers:
+    - Includes support for Ziegler and Transalliance company's multiple transport order formats.
+    - Parser Assistant implemented on `app\Assistants`:
+        - `TransalliancePdfAssistant.php`
+        - `ZieglerPdfAssistant.php`
+    - PDF File location: `storage\pdf_client_test`, New order formats pdfs list:
+        - `TransalliancePdfAssistant_1.pdf` `TransalliancePdfAssistant_1.pdf`
+        - `ZieglerPdfAssistant_1.pdf` `ZieglerPdfAssistant_2.pdf`
+
+====================================================================================================
+
 # SETUP
 
 1. install PHP (version >= 8.1)
@@ -6,22 +29,24 @@
 
 3. copy file `.env.example` to `.env`
 
-3. install Poppler
+4. install Poppler
+
     - see instructions at https://github.com/spatie/pdf-to-text?tab=readme-ov-file#requirements
     - for Windows, see https://github.com/oschwartz10612/poppler-windows
     - if using a custom installation of Poppler, edit the `.env` file and change the
       `PDFTOTEXT_PATH` variable to point to the `pdftotext` executable
 
-4. run:
+5. run:
+
 ```shell
 composer install
 ```
 
 5. start Tinker console:
+
 ```shell
 php artisan tinker
 ```
-
 
 ====================================================================================================
 
@@ -39,23 +64,22 @@ If the class definition is set up correctly, calling `process_pdf('/path/to/some
 Tinker console will return a properly structured associative array. Otherwise, some error with be
 thrown.
 
-
 ====================================================================================================
 
 # TIPS
 
- - see included examples of `AccessPdfAssistant`, `DelamodePdfAssistant` and `SkodaPdfAssistant` and
-   their corresponding PDF format examples under `storage/pdf_client_test`
+-   see included examples of `AccessPdfAssistant`, `DelamodePdfAssistant` and `SkodaPdfAssistant` and
+    their corresponding PDF format examples under `storage/pdf_client_test`
 
- - extract plain text from PDF by calling `extract_lines('/path/to/some.pdf')` from Tinker console
-   to get started (see definition in `app/Helpers/Helper.php`)
+-   extract plain text from PDF by calling `extract_lines('/path/to/some.pdf')` from Tinker console
+    to get started (see definition in `app/Helpers/Helper.php`)
 
- - use Carbon to deal with date-time strings: https://carbon.nesbot.com/docs/
+-   use Carbon to deal with date-time strings: https://carbon.nesbot.com/docs/
 
- - use Laravel helper methods to work with arrays and strings:
+-   use Laravel helper methods to work with arrays and strings:
     https://laravel.com/docs/10.x/helpers#available-methods
     https://laravel.com/docs/10.x/strings#available-methods
 
- - use `uncomma()` to deal with numbers that may use a decimal comma (see `app/Helpers/Helper.php`)
+-   use `uncomma()` to deal with numbers that may use a decimal comma (see `app/Helpers/Helper.php`)
 
- - use `App\GeonamesCountry::getIso()` to convert country names to ISO codes
+-   use `App\GeonamesCountry::getIso()` to convert country names to ISO codes
