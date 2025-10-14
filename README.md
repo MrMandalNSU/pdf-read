@@ -19,6 +19,18 @@
         - `TransalliancePdfAssistant_1.pdf` `TransalliancePdfAssistant_1.pdf`
         - `ZieglerPdfAssistant_1.pdf` `ZieglerPdfAssistant_2.pdf`
 
+# SETUP with Docker
+
+1. Make sure your system has Docker installed and running
+
+2. Copy the example environment file `cp .env.example .env`. Use docker specific `PDFTOTEXT_PATH`
+
+3. Build the Docker Image to builds the PHP container with all necessary system dependencies, including poppler-utils: `docker-compose build`
+
+4. Install Composer Dependencies Run Composer inside a temporary container to install all the required PHP packages: `docker-compose run --rm app composer install`
+
+5. Generate Application Key. Generate the unique application key required by Laravel: `docker-compose run --rm app php artisan key:generate`
+
 ====================================================================================================
 
 # SETUP
