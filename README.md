@@ -13,8 +13,8 @@
 3. Implemented new Parsers:
     - Includes support for Ziegler and Transalliance company's multiple transport order formats.
     - Parser Assistant implemented on `app\Assistants`:
-        - `TransalliancePdfAssistant.php`
-        - `ZieglerPdfAssistant.php`
+        - `TransalliancePdfAssistant.php` (handles multiple Transalliance formats)
+        - `ZieglerPdfAssistant.php` (handles multiple Ziegler formats)
     - PDF File location: `storage\pdf_client_test`, New order formats pdfs list:
         - `TransalliancePdfAssistant_1.pdf` `TransalliancePdfAssistant_1.pdf`
         - `ZieglerPdfAssistant_1.pdf` `ZieglerPdfAssistant_2.pdf`
@@ -23,7 +23,7 @@
 
 1. Make sure your system has Docker installed and running
 
-2. Copy the example environment file `cp .env.example .env`. Use docker specific `PDFTOTEXT_PATH`
+2. Create `.env` File. Copy the example environment file `cp .env.example .env`. Use docker specific `PDFTOTEXT_PATH`
 
 3. Build the Docker Image to builds the PHP container with all necessary system dependencies, including poppler-utils: `docker-compose build`
 
@@ -38,6 +38,8 @@
 2. Run the Parser: `process_pdf(storage_path('app/pdf_client_test/TransalliancePdfAssistant_1.pdf'));` (Change the pdf name to test other formats)
 
 3. Tinker Console will print the parsing pdf outputs according to JSON schema: `storage/order_schema.json`
+
+4. If the Tinker can't find the parser, try running this `docker-compose run --rm app composer dump-autoload`
 
 ====================================================================================================
 
