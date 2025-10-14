@@ -31,6 +31,14 @@
 
 5. Generate Application Key. Generate the unique application key required by Laravel: `docker-compose run --rm app php artisan key:generate`
 
+# Usage & Testing
+
+1. Start the Tinker Console: `docker-compose run --rm app`
+
+2. Run the Parser: `process_pdf(storage_path('app/pdf_client_test/TransalliancePdfAssistant_1.pdf'));` (Change the pdf name to test other formats)
+
+3. Tinker Console will print the parsing pdf outputs according to JSON schema: `storage/order_schema.json`
+
 ====================================================================================================
 
 # SETUP
