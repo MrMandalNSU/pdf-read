@@ -82,14 +82,9 @@ class TransalliancePdfAssistant extends PdfClient
 
     private function extractPrice(string $text): array
     {
-        if (preg_match('/SHIPPING PRICE\s*([\d,]+\.\d{2})\s*([A-Z]{3})/s', $text, $matches)) {
-            $price_string = str_replace(',', '.', str_replace('.', '', $matches[1]));
-            return ['amount' => (float)$price_string, 'currency' => $matches[2]];
-        }
-
-        if (preg_match('/([\d,]+,\d{2})\s*EUR Ex-tax/', $text, $matches)) {
+        if (preg_match('/SHIPPING PRICE\s*([\d,]+\,?\d{2})\s*([A-Z]{3})/s', $text, $matches)) {
             $price_string = str_replace(',', '.', $matches[1]);
-            return ['amount' => (float)$price_string, 'currency' => 'EUR'];
+            return ['amount' => (float)$price_string, 'currency' => $matches[2]];
         }
         return ['amount' => null, 'currency' => null];
     }
@@ -97,14 +92,16 @@ class TransalliancePdfAssistant extends PdfClient
     private function extractCargo(string $text): ?array
     {
         $cargo = [];
-        if (preg_match('/Weight\s*:\s*([\d,.]+)/i', $text, $matches)) {
+
+        if (preg_match('/Weight\s*[:.]\s*([\d,.]+)\s*Kgs\s*[:.]\s*M\. nature:\s*(.+)/is', $text, $matches)) {
             $cargo['weight'] = (float)str_replace([',', '.'], ['', ''], $matches[1]);
-        }
-        if (preg_match('/M\. nature:\s*(.+)/i', $text, $matches)) {
-            $cargo['title'] = trim($matches[1]);
+            $cargo['title'] = trim($matches[2]);
         }
 
-        if (empty($cargo)) return null;
+        if (empty($cargo)) {
+            return ['package_count' => 1, 'title' => 'General Goods'];
+        }
+
         $cargo['package_count'] = 1;
 
         return $cargo;
@@ -115,28 +112,26 @@ class TransalliancePdfAssistant extends PdfClient
         $text = implode("\n", $block);
 
         $date_str = $time_from = $time_to = null;
-        if (preg_match('/ON:\s*(\d{2}\/\d{2}\/\d{2})/', $text, $date_match)) {
+        if (preg_match('/(\d{2}\/\d{2}\/\d{2})/', $text, $date_match)) {
             $date_str = $date_match[1];
         }
-        if (!$date_str && preg_match('/(\d{2}\/\d{2}\/\d{2})/', $text, $date_match)) {
-            $date_str = $date_match[1];
-        }
-
         if (preg_match('/(\d{1,2}h\d{2})\s*-\s*(\d{1,2}h\d{2})/', $text, $time_match)) {
             $time_from = str_replace('h', ':', $time_match[1]);
             $time_to = str_replace('h', ':', $time_match[2]);
         }
 
-        $datetime_from = ($date_str && $time_from) ? Carbon::createFromFormat('d/m/y H:i', "$date_str $time_from")->toIso8601String() : Carbon::createFromFormat('d/m/y', "$date_str")->startOfDay()->toIso8601String();
-        $datetime_to = ($date_str && $time_to) ? Carbon::createFromFormat('d/m/y H:i', "$date_str $time_to")->toIso8601String() : Carbon::createFromFormat('d/m/y', "$date_str")->endOfDay()->toIso8601String();
+        $datetime_from = ($date_str && $time_from) ? Carbon::createFromFormat('d/m/y H:i', "$date_str $time_from")->toIso8601String() : ($date_str ? Carbon::createFromFormat('d/m/y', "$date_str")->startOfDay()->toIso8601String() : null);
+        $datetime_to = ($date_str && $time_to) ? Carbon::createFromFormat('d/m/y H:i', "$date_str $time_to")->toIso8601String() : ($date_str ? Carbon::createFromFormat('d/m/y', "$date_str")->endOfDay()->toIso8601String() : null);
 
         $company = $street = $city = $postal_code = '';
 
         if (preg_match('/(ICONEX FRANCE|ICONEX|DP WORLD LONDON GATEWAY PORT|EP GROUP FRANCE)/', $text, $company_match)) {
             $company = $company_match[0];
         }
-        if (preg_match('/(BAKEWELL RD|10 RTE DES INDUSTRIES|1 LONDON GATEWAY|CORRINGHAM|ZI DISTRIPORT|2 RUE DE TOKYO)/', $text, $street_match)) {
+        if (preg_match('/(BAKEWELL RD|10 RTE DES INDUSTRIES|1 LONDON GATEWAY|ZI DISTRIPORT,\s*2 RUE DE TOKYO)/', $text, $street_match)) {
             $street = $street_match[0];
+        } else if (preg_match('/(CORRINGHAM)/', $text, $street_match)) {
+            $street = 'CORRINGHAM';
         }
 
         if (preg_match('/(GB-[A-Z\d]+\s\d[A-Z]{2}|-\d{5})\s+(.*)$/m', $text, $city_post_match)) {
