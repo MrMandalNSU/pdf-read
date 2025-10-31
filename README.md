@@ -1,5 +1,20 @@
 ====================================================================================================
 
+# Implementation for Test Day (31st Oct, 2025)
+
+1. Create new class for rhenus pdf assistant
+
+-   reload composer to find the class `composer dump-autoload`
+-   start tinker to test `php artisan tinker`
+
+2. Creating a new parser for a new company format
+
+-   pdf path to test for format 1: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_1.pdf'));`
+-   pdf path to test for format 2: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_2.pdf'));`
+-   pdf path to test for format 3: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_3.pdf'));`
+
+====================================================================================================
+
 # Implementation List
 
 1. Dockerized Environment:
