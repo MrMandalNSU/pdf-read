@@ -367,10 +367,19 @@ class RhenusPdfAssistant extends PdfClient
 
                 if ($nextIdx + 3 < count($lines)) {
                     $companyAddress = $this->extractCompanyAddress($lines, $nextIdx);
+                    $shipmentTimes = $this->getShipmentTimes($lines, $i);
 
                     $loadingLocation = [
                         'company_address' => $companyAddress,
                     ];
+
+                    if ($shipmentTimes) {
+                        $loadingLocation['time'] = [
+                            'datetime_from' => $shipmentTimes['pickup_datetime_from'],
+                            'datetime_to' => $shipmentTimes['pickup_datetime_to'],
+                        ];
+                    }
+
                     $loadingLocations[] = $loadingLocation;
                 }
             }
@@ -393,10 +402,18 @@ class RhenusPdfAssistant extends PdfClient
 
                 if ($nextIdx + 3 < count($lines)) {
                     $companyAddress = $this->extractCompanyAddress($lines, $nextIdx);
+                    $shipmentTimes = $this->getShipmentTimes($lines, $i);
 
                     $destinationLocation = [
                         'company_address' => $companyAddress,
                     ];
+
+                    if ($shipmentTimes) {
+                        $destinationLocation['time'] = [
+                            'datetime_from' => $shipmentTimes['delivery_datetime_from'],
+                            'datetime_to' => $shipmentTimes['delivery_datetime_to'],
+                        ];
+                    }
 
                     $destinationLocations[] = $destinationLocation;
                 }
@@ -404,5 +421,127 @@ class RhenusPdfAssistant extends PdfClient
         }
 
         return !empty($destinationLocations) ? $destinationLocations : null;
+    }
+
+    private function getShipmentTimes(array $lines, int $startSearchIdx): ?array
+    {
+        $pickupDateStr = null;
+        $pickupTimeStr = null;
+        $deliveryDateStr = null;
+        $deliveryTimeStr = null;
+
+        $pickupIdx = null;
+        for ($i = $startSearchIdx; $i < count($lines) && $i < $startSearchIdx + 50; $i++) {
+            if (str_contains(strtolower($lines[$i]), 'pickup date')) {
+                $pickupIdx = $i;
+                break;
+            }
+        }
+
+        if ($pickupIdx === null) return null;
+
+        $requestedIdx = null;
+        for ($i = $pickupIdx + 1; $i < count($lines) && $i < $pickupIdx + 10; $i++) {
+            if (str_contains(strtolower($lines[$i]), 'requested')) {
+                $requestedIdx = $i;
+                break;
+            }
+        }
+
+        if ($requestedIdx === null) return null;
+
+        $nextIdx = $requestedIdx + 1;
+        while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+            $nextIdx++;
+        }
+
+        if ($nextIdx >= count($lines)) return null;
+
+        $pickupDateStr = trim($lines[$nextIdx]);
+        $nextIdx++;
+        while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+            $nextIdx++;
+        }
+
+        if ($nextIdx < count($lines)) {
+            $nextLine = trim($lines[$nextIdx]);
+
+            if (str_contains($nextLine, ':') || (str_contains($nextLine, '-') && !str_contains($nextLine, 'Sep') && !str_contains($nextLine, 'Oct'))) {
+                $pickupTimeStr = $nextLine;
+                $nextIdx++;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $deliveryDateStr = trim($lines[$nextIdx]);
+                }
+            } else {
+                $deliveryDateStr = $nextLine;
+            }
+        }
+
+        if (!$deliveryDateStr) {
+            $latestIdx = null;
+            for ($i = $pickupIdx + 1; $i < count($lines) && $i < $pickupIdx + 30; $i++) {
+                if (str_contains(strtolower($lines[$i]), 'latest')) {
+                    $latestIdx = $i;
+                    break;
+                }
+            }
+
+            if ($latestIdx !== null) {
+                $nextIdx = $latestIdx + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $deliveryDateStr = trim($lines[$nextIdx]);
+                    $nextIdx++;
+                    while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                        $nextIdx++;
+                    }
+                    if ($nextIdx < count($lines)) {
+                        $nextLine = trim($lines[$nextIdx]);
+                        if (str_contains($nextLine, ':') || (str_contains($nextLine, '-') && !str_contains($nextLine, 'Sep') && !str_contains($nextLine, 'Oct'))) {
+                            $deliveryTimeStr = $nextLine;
+                        }
+                    }
+                }
+            }
+        }
+
+        $pickupDateTime = $this->parseDateTime($pickupDateStr, $pickupTimeStr);
+        $deliveryDateTime = $this->parseDateTime($deliveryDateStr, $deliveryTimeStr);
+
+        return [
+            'pickup_datetime_from' => $pickupDateTime,
+            'pickup_datetime_to' => $pickupDateTime,
+            'delivery_datetime_from' => $deliveryDateTime,
+            'delivery_datetime_to' => $deliveryDateTime,
+        ];
+    }
+
+    private function parseDateTime(?string $dateStr, ?string $timeStr): ?string
+    {
+        if (!$dateStr) return null;
+
+        try {
+            $date = Carbon::createFromFormat('d-M-Y', $dateStr);
+
+            if ($timeStr) {
+                if (str_contains($timeStr, '-')) {
+                    $timeParts = explode('-', $timeStr);
+                    $timeStr = trim($timeParts[0]);
+                }
+                $timeOnly = Carbon::createFromFormat('H:i', trim($timeStr));
+                $date->setTime($timeOnly->hour, $timeOnly->minute);
+            } else {
+                $date->setTime(0, 0, 0);
+            }
+
+            return $date->toIso8601String();
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 }
