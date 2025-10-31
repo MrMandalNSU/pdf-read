@@ -4,6 +4,7 @@ namespace App\Assistants;
 
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use App\GeonamesCountry;
 
 class RhenusPdfAssistant extends PdfClient
 {
@@ -45,29 +46,33 @@ class RhenusPdfAssistant extends PdfClient
         $dateFrom = Carbon::now()->startOfDay()->toIso8601String();
         $dateTo = Carbon::now()->startOfDay()->toIso8601String();
 
-        $loading_location = [
-            'company_address' => [
-                'company' => "Test String",
-                'street_address' => "Test String",
-                'city' => "Test String",
-                'postal_code' => "Test String",
-            ],
-            'time' => [
-                'datetime_from' => $dateFrom,
-                'datetime_to' => $dateTo,
+        $loading_locations = $this->extractLoadingLocation($lines) ?? [
+            [
+                'company_address' => [
+                    'company' => "Test String",
+                    'street_address' => "Test String",
+                    'city' => "Test String",
+                    'postal_code' => "Test String",
+                ],
+                'time' => [
+                    'datetime_from' => $dateFrom,
+                    'datetime_to' => $dateTo,
+                ]
             ]
         ];
 
-        $destination_location = [
-            'company_address' => [
-                'company' => "Test String",
-                'street_address' => "Test String",
-                'city' => "Test String",
-                'postal_code' => "Test String",
-            ],
-            'time' => [
-                'datetime_from' => $dateFrom,
-                'datetime_to' => $dateTo,
+        $destination_locations = $this->extractDestinationLocation($lines) ?? [
+            [
+                'company_address' => [
+                    'company' => "Test String",
+                    'street_address' => "Test String",
+                    'city' => "Test String",
+                    'postal_code' => "Test String",
+                ],
+                'time' => [
+                    'datetime_from' => $dateFrom,
+                    'datetime_to' => $dateTo,
+                ]
             ]
         ];
 
@@ -83,8 +88,8 @@ class RhenusPdfAssistant extends PdfClient
             'order_reference' => $order_reference,
             'freight_price' => $price['amount'],
             'freight_currency' => $price['currency'],
-            'loading_locations' => [$loading_location],
-            'destination_locations' => [$destination_location],
+            'loading_locations' => $loading_locations,
+            'destination_locations' => $destination_locations,
             'cargos' => [$cargo],
             'attachment_filenames' => [mb_strtolower($attachment_filename ?? '')],
         ];
@@ -253,5 +258,59 @@ class RhenusPdfAssistant extends PdfClient
         }
 
         return null;
+    }
+
+    private function extractCompanyAddress(array $lines, int $startIdx): ?array
+    {
+        $address = [
+            'company' => null,
+            'street_address' => null,
+            'postal_code' => null,
+            'city' => null,
+            'country' => null,
+        ];
+
+        // Extract 4/5 lines starting from startIdx
+        // Line 0: Company name
+        // Line 1: Street address
+        // Line 2/3: Postal code + City
+        // Line 3/4: Country
+
+        if (isset($lines[$startIdx])) {
+            $address['company'] = trim($lines[$startIdx]);
+        }
+
+        if (isset($lines[$startIdx + 1])) {
+            $address['street_address'] = trim($lines[$startIdx + 1]);
+        }
+
+        if (isset($lines[$startIdx + 2])) {
+            $postalCity = trim($lines[$startIdx + 2]);
+            $parts = explode(' ', $postalCity, 2);
+            if (count($parts) == 2) {
+                $address['postal_code'] = $parts[0];
+                $address['city'] = $parts[1];
+            } else {
+                $address['city'] = $postalCity;
+            }
+        }
+
+        if (isset($lines[$startIdx + 3])) {
+
+            $countryName = trim($lines[$startIdx + 3]);
+            $countryNameTitleCase = ucwords(strtolower($countryName));
+            $iso = GeonamesCountry::getIso($countryNameTitleCase);
+
+            if ($iso) {
+                $address['country'] = $iso;
+            } else {
+                $address['country'] = "--"; //edge case
+            }
+        }
+
+
+        return array_filter($address, function ($val) {
+            return $val !== null;
+        });
     }
 }
