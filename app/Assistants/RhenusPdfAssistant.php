@@ -29,6 +29,7 @@ class RhenusPdfAssistant extends PdfClient
         $lines = array_map('trim', $lines);
         $text = implode("\n", $lines);
 
+        /*
         // --- START DEBUG: Print lines with numbers ---
         echo "\n--- DEBUG: Lines passed to validateFormat() ---\n";
         foreach ($lines as $index => $line) {
@@ -36,6 +37,7 @@ class RhenusPdfAssistant extends PdfClient
         }
         echo "--- END DEBUG ---\n\n";
         // --- END DEBUG ---
+        */
 
         $customer = $this->extractCustomer($lines);
 
@@ -272,18 +274,16 @@ class RhenusPdfAssistant extends PdfClient
 
         // Extract 4/5 lines starting from startIdx
         // Line 0: Company name
-        // Line 1: Street address
+        // Line 1/2: Street address
         // Line 2/3: Postal code + City
         // Line 3/4: Country
 
+        // Extract company name (line 0)
         if (isset($lines[$startIdx])) {
             $address['company'] = trim($lines[$startIdx]);
         }
 
-        if (isset($lines[$startIdx + 1])) {
-            $address['street_address'] = trim($lines[$startIdx + 1]);
-        }
-
+        // Extract postal code + city (line 2)
         if (isset($lines[$startIdx + 2])) {
             $postalCity = trim($lines[$startIdx + 2]);
             $parts = explode(' ', $postalCity, 2);
@@ -295,19 +295,58 @@ class RhenusPdfAssistant extends PdfClient
             }
         }
 
+        // Check if line 3 is a valid country
+        $line3Country = null;
         if (isset($lines[$startIdx + 3])) {
-
-            $countryName = trim($lines[$startIdx + 3]);
-            $countryNameTitleCase = ucwords(strtolower($countryName));
-            $iso = GeonamesCountry::getIso($countryNameTitleCase);
-
-            if ($iso) {
-                $address['country'] = $iso;
-            } else {
-                $address['country'] = "--"; //edge case
+            $line3Name = trim($lines[$startIdx + 3]);
+            $line3TitleCase = ucwords(strtolower($line3Name));
+            $line3Iso = GeonamesCountry::getIso($line3TitleCase);
+            if ($line3Iso) {
+                $line3Country = $line3Iso;
             }
         }
 
+        // If line 3 is a valid country, use standard 4-line format
+        if ($line3Country) {
+            // Line 1 is street address
+            if (isset($lines[$startIdx + 1])) {
+                $address['street_address'] = trim($lines[$startIdx + 1]);
+            }
+            $address['country'] = $line3Country;
+        } else {
+            // Line 3 is not a valid country, check line 4
+            $line4Country = null;
+            if (isset($lines[$startIdx + 4])) {
+                $line4Name = trim($lines[$startIdx + 4]);
+                $line4TitleCase = ucwords(strtolower($line4Name));
+                $line4Iso = GeonamesCountry::getIso($line4TitleCase);
+                if ($line4Iso) {
+                    $line4Country = $line4Iso;
+                }
+            }
+
+            // If line 4 is a valid country, use 5-line format
+            if ($line4Country) {
+                // Lines 1 and 3 are street addresses
+                $streetLines = [];
+                if (isset($lines[$startIdx + 1])) {
+                    $streetLines[] = trim($lines[$startIdx + 1]);
+                }
+                if (isset($lines[$startIdx + 3])) {
+                    $streetLines[] = trim($lines[$startIdx + 3]);
+                }
+                if (!empty($streetLines)) {
+                    $address['street_address'] = implode(', ', $streetLines);
+                }
+                $address['country'] = $line4Country;
+            } else {
+                // Neither line 3 nor line 4 is valid country, use edge case
+                if (isset($lines[$startIdx + 1])) {
+                    $address['street_address'] = trim($lines[$startIdx + 1]);
+                }
+                $address['country'] = "--";
+            }
+        }
 
         return array_filter($address, function ($val) {
             return $val !== null;
