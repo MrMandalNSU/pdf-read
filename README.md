@@ -2,16 +2,24 @@
 
 # Implementation for Test Day (31st Oct, 2025)
 
-1. Create new class for rhenus pdf assistant
+1. Created new class for rhenus pdf assistant
 
+-   `app\Assistants\RhenusPdfAssistant.php`
 -   reload composer to find the class `composer dump-autoload`
 -   start tinker to test `php artisan tinker`
+-   Or follow docker instruction if you are using docker
 
-2. Creating a new parser for a new company format
+2. To test the new parser for Rhenus company order formats
 
 -   pdf path to test for format 1: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_1.pdf'));`
 -   pdf path to test for format 2: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_2.pdf'));`
 -   pdf path to test for format 3: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_3.pdf'));`
+
+# Implementation List
+
+-   Support for extract company address with every field
+-   Support for order_reference, freight_price, freight_currency, transport_numbers
+-   Support for dynamic loading_locations, destination_locations, cargos
 
 ====================================================================================================
 
