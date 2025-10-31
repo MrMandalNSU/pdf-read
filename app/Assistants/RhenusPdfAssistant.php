@@ -339,4 +339,31 @@ class RhenusPdfAssistant extends PdfClient
 
         return !empty($loadingLocations) ? $loadingLocations : null;
     }
+
+    private function extractDestinationLocation(array $lines): ?array
+    {
+        $destinationLocations = [];
+
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'sender ref.')) {
+
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+
+                if ($nextIdx + 3 < count($lines)) {
+                    $companyAddress = $this->extractCompanyAddress($lines, $nextIdx);
+
+                    $destinationLocation = [
+                        'company_address' => $companyAddress,
+                    ];
+
+                    $destinationLocations[] = $destinationLocation;
+                }
+            }
+        }
+
+        return !empty($destinationLocations) ? $destinationLocations : null;
+    }
 }
