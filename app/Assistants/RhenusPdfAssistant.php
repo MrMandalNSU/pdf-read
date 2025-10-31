@@ -373,7 +373,7 @@ class RhenusPdfAssistant extends PdfClient
                         'company_address' => $companyAddress,
                     ];
 
-                    if ($shipmentTimes) {
+                    if ($shipmentTimes && ($shipmentTimes['pickup_datetime_from'] || $shipmentTimes['pickup_datetime_to'])) {
                         $loadingLocation['time'] = [
                             'datetime_from' => $shipmentTimes['pickup_datetime_from'],
                             'datetime_to' => $shipmentTimes['pickup_datetime_to'],
@@ -408,7 +408,7 @@ class RhenusPdfAssistant extends PdfClient
                         'company_address' => $companyAddress,
                     ];
 
-                    if ($shipmentTimes) {
+                    if ($shipmentTimes && ($shipmentTimes['delivery_datetime_from'] || $shipmentTimes['delivery_datetime_to'])) {
                         $destinationLocation['time'] = [
                             'datetime_from' => $shipmentTimes['delivery_datetime_from'],
                             'datetime_to' => $shipmentTimes['delivery_datetime_to'],
