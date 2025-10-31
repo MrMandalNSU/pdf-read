@@ -313,4 +313,30 @@ class RhenusPdfAssistant extends PdfClient
             return $val !== null;
         });
     }
+
+    private function extractLoadingLocation(array $lines): ?array
+    {
+        $loadingLocations = [];
+
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'unload place')) {
+
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+
+                if ($nextIdx + 3 < count($lines)) {
+                    $companyAddress = $this->extractCompanyAddress($lines, $nextIdx);
+
+                    $loadingLocation = [
+                        'company_address' => $companyAddress,
+                    ];
+                    $loadingLocations[] = $loadingLocation;
+                }
+            }
+        }
+
+        return !empty($loadingLocations) ? $loadingLocations : null;
+    }
 }
