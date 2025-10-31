@@ -40,10 +40,7 @@ class RhenusPdfAssistant extends PdfClient
 
         $order_reference = $this->extractReference($lines) ?? "Not Mentioned";
 
-        $price = [
-            'amount' => 100,
-            'currency' => "USD",
-        ];
+        $price =  $this->extractFreightPrice($lines);
 
         $dateFrom = Carbon::now()->startOfDay()->toIso8601String();
         $dateTo = Carbon::now()->startOfDay()->toIso8601String();
@@ -220,6 +217,35 @@ class RhenusPdfAssistant extends PdfClient
                     $value = trim($lines[$nextIdx]);
                     if (!empty($value) && !str_contains(strtolower($value), 'request')) {
                         return $value;
+                    }
+                }
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractFreightPrice(array $lines): ?array
+    {
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'freight cost')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $value = trim($lines[$nextIdx]);
+                    if (!empty($value)) {
+                        $parts = explode(' ', $value);
+                        if (count($parts) >= 2) {
+                            $amount = uncomma($parts[0]);
+                            $currency = $parts[count($parts) - 1];
+                            return [
+                                'amount' => $amount,
+                                'currency' => $currency,
+                            ];
+                        }
                     }
                 }
                 break;
