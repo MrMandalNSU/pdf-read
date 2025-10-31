@@ -38,7 +38,7 @@ class RhenusPdfAssistant extends PdfClient
 
         $customer = $this->extractCustomer($lines);
 
-        $order_reference = "1234";
+        $order_reference = $this->extractReference($lines) ?? "Not Mentioned";
 
         $price = [
             'amount' => 100,
@@ -206,5 +206,26 @@ class RhenusPdfAssistant extends PdfClient
         });
 
         return $customer;
+    }
+
+    private function extractReference(array $lines): ?string
+    {
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'principal ref.')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $value = trim($lines[$nextIdx]);
+                    if (!empty($value) && !str_contains(strtolower($value), 'request')) {
+                        return $value;
+                    }
+                }
+                break;
+            }
+        }
+
+        return null;
     }
 }
