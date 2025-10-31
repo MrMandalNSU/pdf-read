@@ -25,16 +25,18 @@ class RhenusPdfAssistant extends PdfClient
 
     public function processLines(array $lines, ?string $attachment_filename = null)
     {
-        echo "I am here in Rhenus Parser";
+        $lines = array_map('trim', $lines);
+        $text = implode("\n", $lines);
 
-        //Temporary Data blocks to verify the JSON format
+        // --- START DEBUG: Print lines with numbers ---
+        echo "\n--- DEBUG: Lines passed to validateFormat() ---\n";
+        foreach ($lines as $index => $line) {
+            echo "[" . $index . "] " . $line . "\n";
+        }
+        echo "--- END DEBUG ---\n\n";
+        // --- END DEBUG ---
 
-        $customer = [
-            'side' => 'none',
-            'details' => [
-                'company' => 'Rhenus Logistics Ltd',
-            ],
-        ];
+        $customer = $this->extractCustomer($lines);
 
         $order_reference = "1234";
 
@@ -91,5 +93,118 @@ class RhenusPdfAssistant extends PdfClient
         ];
 
         $this->createOrder($data);
+    }
+
+    private function extractCustomer(array $lines): ?array
+    {
+        $customer = [
+            'side' => 'none',
+            'details' => [
+                'company' => null,
+                'street_address' => null,
+                'city' => null,
+                'postal_code' => null,
+                'phone' => null,
+                'fax' => null,
+                'email' => null,
+            ],
+        ];
+
+        // Customer section Before Carrier
+        $endIdx = count($lines);
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'carrier:')) {
+                $endIdx = $i;
+                break;
+            }
+        }
+
+        // Extract company name
+        if (isset($lines[2]) && $endIdx > 2) {
+            $customer['details']['company'] = trim($lines[2]);
+        }
+
+        // Extract street, Combining two street lines
+        $streetParts = [];
+        if (isset($lines[3]) && $endIdx > 3) {
+            $streetLine1 = trim($lines[3]);
+            if (!empty($streetLine1)) {
+                $streetParts[] = $streetLine1;
+            }
+        }
+        if (isset($lines[9]) && $endIdx > 9) {
+            $streetLine2 = trim($lines[9]);
+            if (!empty($streetLine2)) {
+                $streetParts[] = $streetLine2;
+            }
+        }
+        if (!empty($streetParts)) {
+            $customer['details']['street_address'] = implode(', ', $streetParts);
+        }
+
+        // Extract city
+        if (isset($lines[15]) && $endIdx > 15) {
+            $city = trim($lines[15]);
+            if (!empty($city)) {
+                $customer['details']['city'] = $city;
+            }
+        }
+
+        // Extract phone
+        for ($i = 0; $i < $endIdx; $i++) {
+            if (str_contains(strtolower($lines[$i]), 'phone:') && !str_contains(strtolower($lines[$i]), 'phone::')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < $endIdx && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < $endIdx) {
+                    $value = trim($lines[$nextIdx]);
+                    if (!empty($value) && !str_contains(strtolower($value), ':')) {
+                        $customer['details']['phone'] = $value;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Extract fax
+        for ($i = 0; $i < $endIdx; $i++) {
+            if (str_contains(strtolower($lines[$i]), 'fax:')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < $endIdx && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < $endIdx) {
+                    $value = trim($lines[$nextIdx]);
+                    if (!empty($value) && !str_contains(strtolower($value), ':')) {
+                        $customer['details']['fax'] = $value;
+                    }
+                }
+                break;
+            }
+        }
+
+        // Extract email
+        for ($i = 0; $i < $endIdx; $i++) {
+            if (str_contains(strtolower($lines[$i]), 'email:')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < $endIdx && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < $endIdx) {
+                    $value = trim($lines[$nextIdx]);
+                    if (!empty($value) && str_contains(strtolower($value), '@')) {
+                        $customer['details']['email'] = $value;
+                    }
+                }
+                break;
+            }
+        }
+
+        $customer['details'] = array_filter($customer['details'], function ($val) {
+            return $val !== null;
+        });
+
+        return $customer;
     }
 }
