@@ -1,5 +1,28 @@
 ====================================================================================================
 
+# Implementation for Test Day (31st Oct, 2025)
+
+1. Created new class for rhenus pdf assistant
+
+-   `app\Assistants\RhenusPdfAssistant.php`
+-   reload composer to find the class `composer dump-autoload`
+-   start tinker to test `php artisan tinker`
+-   Or follow docker instruction if you are using docker
+
+2. To test the new parser for Rhenus company order formats
+
+-   pdf path to test for format 1: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_1.pdf'));`
+-   pdf path to test for format 2: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_2.pdf'));`
+-   pdf path to test for format 3: `process_pdf(storage_path('pdf_client_test/RhenusPdfAssistant_3.pdf'));`
+
+# Implementation List
+
+-   Support for extract company address with every field
+-   Support for order_reference, freight_price, freight_currency, transport_numbers
+-   Support for dynamic loading_locations, destination_locations, cargos
+
+====================================================================================================
+
 # Implementation List
 
 1. Dockerized Environment:
@@ -35,7 +58,7 @@
 
 1. Start the Tinker Console: `docker-compose run --rm app`
 
-2. Run the Parser: `process_pdf(storage_path('app/pdf_client_test/TransalliancePdfAssistant_1.pdf'));` (Change the pdf name to test other formats)
+2. Run the Parser: `process_pdf(storage_path('pdf_client_test/TransalliancePdfAssistant_1.pdf'));` (Change the pdf name to test other formats)
 
 3. Tinker Console will print the parsing pdf outputs according to JSON schema: `storage/order_schema.json`
 
