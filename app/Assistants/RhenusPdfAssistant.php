@@ -45,6 +45,8 @@ class RhenusPdfAssistant extends PdfClient
 
         $price =  $this->extractFreightPrice($lines);
 
+        $transport_numbers = $this->extractTransportNumbers($lines);
+
         $dateFrom = Carbon::now()->startOfDay()->toIso8601String();
         $dateTo = Carbon::now()->startOfDay()->toIso8601String();
 
@@ -92,6 +94,7 @@ class RhenusPdfAssistant extends PdfClient
             'order_reference' => $order_reference,
             'freight_price' => $price['amount'],
             'freight_currency' => $price['currency'],
+            'transport_numbers' => $transport_numbers,
             'loading_locations' => $loading_locations,
             'destination_locations' => $destination_locations,
             'cargos' => $cargos,
@@ -258,6 +261,28 @@ class RhenusPdfAssistant extends PdfClient
                     }
                 }
                 break;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractTransportNumbers(array $lines): ?string
+    {
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'transport no')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+
+                if ($nextIdx < count($lines)) {
+                    $candidateLine = trim($lines[$nextIdx]);
+
+                    if (!str_contains($candidateLine, ':')) {
+                        return $candidateLine;
+                    }
+                }
             }
         }
 
