@@ -79,10 +79,12 @@ class RhenusPdfAssistant extends PdfClient
         ];
 
 
-        $cargo = [
-            'weight' => 1.00,
-            'title' => "test string",
-            'package_count' => 1,
+        $cargos = $this->extractCargos($lines) ?? [
+            [
+                'weight' => 1.00,
+                'title' => "test string",
+                'package_count' => 1,
+            ]
         ];
 
         $data = [
@@ -92,7 +94,7 @@ class RhenusPdfAssistant extends PdfClient
             'freight_currency' => $price['currency'],
             'loading_locations' => $loading_locations,
             'destination_locations' => $destination_locations,
-            'cargos' => [$cargo],
+            'cargos' => $cargos,
             'attachment_filenames' => [mb_strtolower($attachment_filename ?? '')],
         ];
 
@@ -543,5 +545,211 @@ class RhenusPdfAssistant extends PdfClient
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    private function extractCargos(array $lines): ?array
+    {
+        $cargos = [];
+        $shipmentIndices = [];
+
+        for ($i = 0; $i < count($lines); $i++) {
+            if (str_contains(strtolower($lines[$i]), 'shipment no:')) {
+                $nextIdx = $i + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $shipmentNumber = trim($lines[$nextIdx]);
+                    $shipmentIndices[] = [
+                        'label_idx' => $i,
+                        'number' => $shipmentNumber,
+                    ];
+                }
+            }
+        }
+
+        if (empty($shipmentIndices)) return null;
+
+        foreach ($shipmentIndices as $shipmentInfo) {
+            $startIdx = $shipmentInfo['label_idx'];
+            $cargo = [
+                'number' => $shipmentInfo['number'],
+            ];
+
+            $quantityLabelIdx = $this->findLabelIndex($lines, 'total quantity:', $startIdx + 1);
+            if ($quantityLabelIdx === null) {
+                continue;
+            }
+
+            $descLabelIdx = $this->findLabelIndex($lines, 'goods description', $quantityLabelIdx);
+            $weightLabelIdx = $descLabelIdx ? $this->findLabelIndex($lines, 'total gross weight', $descLabelIdx) : null;
+            $volumeLabelIdx = $weightLabelIdx ? $this->findLabelIndex($lines, 'total volume', $weightLabelIdx) : null;
+            $ldmLabelIdx = $volumeLabelIdx ? $this->findLabelIndex($lines, 'total ldm', $volumeLabelIdx) : null;
+
+            $valuesStartIdx = $ldmLabelIdx ? $ldmLabelIdx + 1 : $quantityLabelIdx + 1;
+            while ($valuesStartIdx < count($lines) && trim($lines[$valuesStartIdx]) === '') {
+                $valuesStartIdx++;
+            }
+
+            $values = [];
+            $valueIdx = $valuesStartIdx;
+            $valueCount = 0;
+
+            while ($valueIdx < count($lines) && $valueCount < 6) {
+                $currentLine = trim($lines[$valueIdx]);
+                if ($currentLine !== '') {
+                    $values[$valueCount] = $currentLine;
+                    $valueCount++;
+                }
+                $valueIdx++;
+            }
+
+            if (isset($values[0]) && is_numeric($values[0])) {
+                $cargo['package_count'] = (int)$values[0];
+            }
+
+            if (isset($values[1])) {
+                $cargo['title'] = $values[1];
+            }
+
+            if (isset($values[2])) {
+                $weight = (float)uncomma($values[2]);
+                if ($weight > 0) {
+                    $cargo['weight'] = $weight;
+                }
+            }
+
+            if (isset($values[3])) {
+                $volume = (float)uncomma($values[3]);
+                if ($volume > 0) {
+                    $cargo['volume'] = $volume;
+                }
+            }
+
+            if (isset($values[4])) {
+                $ldm = (float)uncomma($values[4]);
+                if ($ldm > 0) {
+                    $cargo['ldm'] = $ldm;
+                }
+            }
+
+            if (isset($values[5])) {
+                $pkgTypeStr = strtolower($values[5]);
+                if ($pkgTypeStr === 'piece') {
+                    $cargo['package_type'] = 'EPAL';
+                } elseif ($pkgTypeStr === 'units') {
+                    $cargo['package_type'] = 'other';
+                }
+            }
+
+            $lengthIdx = $this->findLabelIndex($lines, 'length [cm]', $startIdx);
+            if ($lengthIdx !== null) {
+                $nextIdx = $lengthIdx + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $lengthStr = trim($lines[$nextIdx]);
+                    if (is_numeric($lengthStr)) {
+                        $cargo['pkg_length'] = (float)$lengthStr / 100;
+                    }
+                }
+            }
+
+            $widthIdx = $this->findLabelIndex($lines, 'width [cm]', $startIdx);
+            if ($widthIdx !== null) {
+                $nextIdx = $widthIdx + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $widthStr = trim($lines[$nextIdx]);
+                    if (is_numeric($widthStr)) {
+                        $cargo['pkg_width'] = (float)$widthStr / 100;
+                    }
+                }
+            }
+
+            $heightIdx = $this->findLabelIndex($lines, 'height [cm]', $startIdx);
+            if ($heightIdx !== null) {
+                $nextIdx = $heightIdx + 1;
+                while ($nextIdx < count($lines) && trim($lines[$nextIdx]) === '') {
+                    $nextIdx++;
+                }
+                if ($nextIdx < count($lines)) {
+                    $heightStr = trim($lines[$nextIdx]);
+                    if (is_numeric($heightStr)) {
+                        $cargo['pkg_height'] = (float)$heightStr / 100;
+                    }
+                }
+            }
+
+            $cargo = array_filter($cargo, function ($val) {
+                return $val !== null;
+            });
+
+            if (!empty($cargo)) {
+                $cargos[] = $cargo;
+            }
+        }
+
+        return !empty($cargos) ? $cargos : null;
+    }
+
+    private function findLabelIndex(array $lines, string $label, int $startIdx, int $maxRange = 150): ?int
+    {
+        $endIdx = min($startIdx + $maxRange, count($lines));
+        for ($i = $startIdx; $i < $endIdx; $i++) {
+            $lineContent = strtolower(trim($lines[$i]));
+            $labelLower = strtolower($label);
+
+            if ($labelLower === 'total quantity:') {
+                if (str_starts_with($lineContent, 'total quantity')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'goods description') {
+                if ($lineContent === 'goods description') {
+                    return $i;
+                }
+            } elseif ($labelLower === 'total gross weight') {
+                if (str_contains($lineContent, 'total gross weight')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'total volume') {
+                if (str_contains($lineContent, 'total volume')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'total ldm') {
+                if (str_contains($lineContent, 'total ldm') || str_contains($lineContent, 'total ldm')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'piece') {
+                if (trim($lineContent) === 'piece') {
+                    return $i;
+                }
+            } elseif ($labelLower === 'units') {
+                if (trim($lineContent) === 'units') {
+                    return $i;
+                }
+            } elseif ($labelLower === 'length [cm]') {
+                if (str_contains($lineContent, 'length') && str_contains($lineContent, 'cm')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'width [cm]') {
+                if (str_contains($lineContent, 'width') && str_contains($lineContent, 'cm')) {
+                    return $i;
+                }
+            } elseif ($labelLower === 'height [cm]') {
+                if (str_contains($lineContent, 'height') && str_contains($lineContent, 'cm')) {
+                    return $i;
+                }
+            } else {
+                // Generic fallback
+                if (str_contains($lineContent, $labelLower)) {
+                    return $i;
+                }
+            }
+        }
+        return null;
     }
 }
